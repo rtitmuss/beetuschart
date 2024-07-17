@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { LogEntry, logEntryTypeToNameMap } from "./LogEntry.d.ts";
+import { LogEntry, LogEntryType, logEntryTypeToNameMap } from "./LogEntry.d.ts";
 
 import {
     Paper,
@@ -17,51 +17,58 @@ import {
     useReactTable,
 } from '@tanstack/react-table'
 
-const columnHelper = createColumnHelper<LogEntry>()
+const columnHelper = createColumnHelper()
 
 const columns = [
-    columnHelper.accessor('date', {
-        header: () => 'Date',
-        cell: info => info.getValue().toLocaleString(),
-        footer: () => 'footer'
-    }),
-    columnHelper.accessor('timeDelta', {
-        header: () => 'Time',
-        cell: info => {
-            if (info.getValue() === undefined) {
-                return '';
-            }
-            const minutes = info.getValue() / 1000 / 60;
-            return Math.trunc(minutes / 60) + ':' + (minutes % 60);
-        },
-        footer: () => ''
-    }),
-    columnHelper.accessor('maxDelta', {
-        header: () => 'Delta',
-        cell: info => info.getValue().toFixed(1),
-        footer: info => {
-//            console.log(info);
-            return Math.max(info.rows)
-        }
-    }),
     columnHelper.accessor('type', {
         header: () => 'Type',
         cell: info => logEntryTypeToNameMap[info.getValue()] || '',
         footer: () => ''
     }),
-    columnHelper.accessor('note', {
-        header: () => 'Note',
-        cell: info => info.getValue(),
+    columnHelper.accessor('timeDelta', {
+        header: () => 'Average Time',
+        cell: info => {
+            if (info.getValue() === undefined) {
+                return '';
+            }
+            const minutes = info.getValue() / 1000 / 60;
+            return Math.trunc(minutes / 60) + ':' + Math.trunc(minutes % 60);
+        },
         footer: () => ''
     }),
 ];
 
+function eventToTypeMinutes(eventLog) {
+    return [
+        LogEntryType.Breakfast,
+        LogEntryType.Lunch,
+        LogEntryType.Dinner,
+        LogEntryType.Snack,
+        LogEntryType.Sport
+    ].reduce((result, type) => {
+        const typeLog = eventLog.filter(e => e.type === type);
+        const typeTimeDelta = typeLog.reduce((result, event) => {
+            return result + event.timeDelta;
+        }, 0) / typeLog.length;
+        result.push({
+            type: type,
+            timeDelta: typeTimeDelta,
+        })
+        return result;
+    }, []);
+}
+
 function EventTable(props) {
-    const [data, setData] = React.useState([...props.eventLog].reverse());
+    const [data, setData] = React.useState(eventToTypeMinutes(props.eventLog));
 
     useEffect(() => {
-        setData([...props.eventLog].reverse());
+        setData(eventToTypeMinutes(props.eventLog));
     }, [props.eventLog]);
+
+
+    console.log(data);
+
+
 
     const table = useReactTable({
         data,
@@ -89,20 +96,6 @@ function EventTable(props) {
                 ))}
                 </TableHead>
                 <TableBody>
-                {table.getFooterGroups().map(footerGroup => (
-                    <TableRow key={footerGroup.id}>
-                        {footerGroup.headers.map(header => (
-                            <TableCell key={header.id}>
-                                {header.isPlaceholder
-                                    ? null
-                                    : flexRender(
-                                        header.column.columnDef.footer,
-                                        header.getContext()
-                                    )}
-                            </TableCell>
-                        ))}
-                    </TableRow>
-                ))}
                 {table.getRowModel().rows.map(row => (
                     <tr key={row.id}>
                         {row.getVisibleCells().map(cell => (

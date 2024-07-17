@@ -34,8 +34,7 @@ export function convertUnit(mmol: number, settings: SettingsType): number {
     if (settings.unit === "mg/dL") {
         return Math.round(mmol * 18.0182);
     } else {
-        return mmol;
-//        return parseFloat(mmol.toFixed(1));
+        return Math.round(mmol * 10) / 10;
     }
 }
 
@@ -96,7 +95,7 @@ export function SettingsButton() {
             </Button>
             <Drawer anchor="right" open={settingsOpen} onClose={toggleSettings(false)}>
                 <Container>
-                    <Grid item xs={2} spacing={3}>
+                    <Grid item xs={2}>
                         <Stack spacing={3} direction="column" alignItems="flex-start">
                             <IconButton onClick={toggleSettings(false)}>
                                 <ChevronRightIcon/>

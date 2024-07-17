@@ -29,13 +29,15 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import Papa from 'papaparse';
 
 import {bgmData, eventData} from "./Data.ts";
-import TimelineChart from "./TimelineChart.tsx";
-import EventChart from "./EventChart";
-import EventTable from "./EventTable.tsx";
-import LogEntryTable from "./LogEntryTable.tsx";
-import {EventEntry, LogEntry, LogEntryType} from "./LogEntry.d.ts";
+import BoxPlotChart from "./BoxPlotChart.tsx";
 import {EAG} from "./EAg.tsx";
+import EventChart from "./EventChart";
+import EventSummaryTable from "./EventSummaryTable.tsx";
+import EventTable from "./EventTable.tsx";
+import {EventEntry, LogEntry, LogEntryType} from "./LogEntry.d.ts";
+import LogEntryTable from "./LogEntryTable.tsx";
 import {SettingsButton, SettingsProvider, useSettings} from "./SettingsContext.tsx";
+import TimelineChart from "./TimelineChart.tsx";
 
 function addHours(date, hours) {
     return new Date(date.getTime() + (hours * 60 * 60 * 1000));
@@ -331,6 +333,22 @@ function App() {
                         <Grid container spacing={2} alignItems='start'>
                             {/* Space under header */}
                             <Grid item xs={12}/>
+
+                            <Grid item xs={2}>
+                                <Paper>
+                                    <EventSummaryTable eventLog={eventLog}></EventSummaryTable>
+                                </Paper>
+                            </Grid>
+                            <Grid item xs={5}>
+                                <Paper>
+                                    <BoxPlotChart logEntries={logEntries}></BoxPlotChart>
+                                </Paper>
+                            </Grid>
+                            <Grid item xs={5}>
+                                <Paper>
+                                    <BoxPlotChart logEntries={logEntries}></BoxPlotChart>
+                                </Paper>
+                            </Grid>
 
                             {/* Left Section: Graphs */}
                             <Grid container item xs={7} spacing={2}>
