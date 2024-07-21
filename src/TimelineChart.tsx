@@ -18,6 +18,35 @@ function addHours(date, hours) {
     return new Date(date.getTime() + (hours * 60 * 60 * 1000));
 }
 
+function splitDataByTimeGap(data: [Date, number], gapHours: number): [Date, number][][] {
+    const result: [Date, number][][] = [];
+    let currentList: [Date, number][] = [];
+    let lastDate: Date | null = null;
+
+    data.forEach(entry => {
+        if (lastDate === null || differenceInHours(entry[0], lastDate) <= gapHours) {
+            currentList.push(entry);
+        } else {
+            // Start a new list if the gap is greater than the specified gapHours
+            result.push(currentList);
+            currentList = [entry];
+        }
+        lastDate = entry[0];
+    });
+
+    // Push the last list if it has any data
+    if (currentList.length > 0) {
+        result.push(currentList);
+    }
+
+    return result;
+}
+
+function differenceInHours(date1: Date, date2: Date): number {
+    const diffTime = Math.abs(date1.getTime() - date2.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60)); // convert milliseconds to hours
+}
+
 function TimelineChart(props) {
     const logEntries = props.logEntries;
     const {settings, setSettings } = useSettings();
@@ -39,6 +68,8 @@ function TimelineChart(props) {
             data.date,
             convertUnit(data.cgm, settings),
         ]));
+
+    const cgmLists = splitDataByTimeGap(cgmData, 2);
 
     const bgmAnnotations = logEntries
         .filter(data => data.bgm !== undefined)
@@ -141,10 +172,10 @@ function TimelineChart(props) {
                 points: bgmAnnotations,
             }
         },
-        series: [{
+        series: cgmLists.map(cgmData => ({
             name: 'CGM',
             data: cgmData
-        }]
+        }))
     };
 
     return <Chart options={state.options} series={state.series} type="line"/>;
