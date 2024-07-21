@@ -67,6 +67,7 @@ function parseMysugr(filename, setLogEntries) {
         dynamicTyping: true,
         complete: function (results) {
             const bgmData = results.data.slice(1)
+                .filter(line => line[3])
                 .map(line => {
                     return {
                         date: new Date(line[0] + ' ' + line[1] + ' ' + line[25]),
@@ -113,8 +114,8 @@ function eventEntryFromLogEntry(logEntries: LogEntry[]): EventEntry[] {
         });
 }
 
-function sortAndRemoveDuplicates(logEntry: LogEntry[]): LogEntry[] {
-    return logEntry
+function sortAndRemoveDuplicates(entries: LogEntry[]): LogEntry[] {
+    return entries
         .sort((a, b) => {
             if (a.date.getTime() !== b.date.getTime()) {
                 return a.date - b.date;
@@ -132,6 +133,29 @@ function sortAndRemoveDuplicates(logEntry: LogEntry[]): LogEntry[] {
         );
 }
 
+/* Assume the first bgm reading of the day is a fasting value */
+function setFastingFlag(entries: LogEntry[]): LogEntry[] {
+    let lastBgmDate: string | null = null;
+
+    return entries.map(entry => {
+        const currentDate = entry.date.toISOString().split('T')[0];
+
+        const isFirstBgmOfDay = entry.bgm != null && currentDate !== lastBgmDate;
+        if (isFirstBgmOfDay) {
+            lastBgmDate = currentDate;
+        }
+
+        return {
+            ...entry,
+            isFasting: isFirstBgmOfDay
+        };
+    });
+}
+
+function processLogEntries(entries: LogEntry[]): LogEntry[] {
+    return setFastingFlag(sortAndRemoveDuplicates(entries));
+}
+
 function App() {
     const [logEntries, setLogEntries] = useState<LogEntry[]>(() => {
         const localDataJson = localStorage.getItem('logEntries');
@@ -142,11 +166,11 @@ function App() {
             return value;
         }) : [];
 
-        return sortAndRemoveDuplicates(localData);
+        return processLogEntries(localData);
     });
 
     const appendLogEntries = function (logEntry: LogEntry[]) {
-        setLogEntries(sortAndRemoveDuplicates([...logEntries, ...logEntry]));
+        setLogEntries(processLogEntries([...logEntries, ...logEntry]));
     }
 
     useEffect(() => {

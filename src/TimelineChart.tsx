@@ -65,7 +65,8 @@ function TimelineChart(props) {
                 y: convertedBgmReading,
                 marker: {
                     size: 2,
-                    fillColor: '#121914',
+                    fillColor: data.isFasting ? '#121914': '#B0B2B1',
+                    strokeColor: data.isFasting ? '#121914': '#B0B2B1',
                 },
                 /*
                 label: {
