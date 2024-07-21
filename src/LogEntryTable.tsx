@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react'
-import { LogEntry, logEntryTypeToNameMap } from "./LogEntry.d.ts";
+import { LogEntry } from "./LogEntry.d.ts";
 
 import {
     createColumnHelper,
@@ -22,10 +22,6 @@ const columns = [
     columnHelper.accessor('bgm', {
         header: () => 'BGM',
         cell: info => info.getValue(),
-    }),
-    columnHelper.accessor('type', {
-        header: () => 'Type',
-        cell: info => logEntryTypeToNameMap[info.getValue()] || ''
     }),
     columnHelper.accessor('note', {
         header: () => 'Note',

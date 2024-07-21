@@ -20,7 +20,6 @@ function addHours(date, hours) {
 
 function TimelineChart(props) {
     const logEntries = props.logEntries;
-    const eventLog = props.eventLog;
     const {settings, setSettings } = useSettings();
 
     const cgmData = logEntries
@@ -57,6 +56,7 @@ function TimelineChart(props) {
                     size: 2,
                     fillColor: '#121914',
                 },
+                /*
                 label: {
                     text: convertedBgmReading + ' [' + convertUnit(deltaGloucose, settings) + ']',
                     style: {
@@ -64,23 +64,8 @@ function TimelineChart(props) {
                         color: 'white',
                     }
                 }
+                */
             };
-        });
-
-    const xaxisAnnotations: ApexAnnotations = eventLog
-        .map(event => {
-            const t0 = event.date;
-            const t1 = addHours(t0, 2);
-
-            return {
-                x: t0.getTime(),
-                x2: t1.getTime(),
-                fillColor: logEntryTypeToColorMap[event.type],
-                label: {
-                    borderWidth: 0,
-                    text: (logEntryTypeToNameMap[event.type] || '') + ': ' + event.note + ' [+' + event.maxDelta.toFixed(1) + ' mmol/L]'
-                }
-            }
         });
 
     const yaxisAnnotations: ApexAnnotations = [settings.rangeMin, settings.rangeMax].map(target => {
@@ -138,7 +123,6 @@ function TimelineChart(props) {
                 }
             },
             annotations: {
-                xaxis: xaxisAnnotations,
                 yaxis: yaxisAnnotations,
                 points: bgmAnnotations,
             }

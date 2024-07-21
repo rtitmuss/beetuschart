@@ -28,13 +28,9 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import Papa from 'papaparse';
 
-import {bgmData, eventData} from "./Data.ts";
 import BoxPlotChart from "./BoxPlotChart.tsx";
 import {EAG} from "./EAg.tsx";
-import EventChart from "./EventChart";
-import EventSummaryTable from "./EventSummaryTable.tsx";
-import EventTable from "./EventTable.tsx";
-import {EventEntry, LogEntry, LogEntryType} from "./LogEntry.d.ts";
+import {LogEntry} from "./LogEntry.d.ts";
 import LogEntryTable from "./LogEntryTable.tsx";
 import {SettingsButton, SettingsProvider, useSettings} from "./SettingsContext.tsx";
 import TimelineChart from "./TimelineChart.tsx";
@@ -43,7 +39,7 @@ function addHours(date, hours) {
     return new Date(date.getTime() + (hours * 60 * 60 * 1000));
 }
 
-function parseLibreView(filename, setEventLog) {
+function parseLibreView(filename, setLogEntries) {
     Papa.parse(filename, {
         header: false,
         dynamicTyping: true,
@@ -60,53 +56,25 @@ function parseLibreView(filename, setEventLog) {
                     }
                 });
 
-            setEventLog(cgmData);
+            setLogEntries(cgmData);
+        }
+    });
+}
 
-            // const mealTime = results.data.slice(2)
-            //     .filter(line => line[3] === 5)
-            //     .map(line => {
-            //         const match = line[2].match(re);
-            //         return new Date(match[3], match[2] - 1, match[1], match[4], match[5])
-            //     });
-            //
-            // const exerciseTime = results.data.slice(2)
-            //     .filter(line => line[3] === 6 && line[13] === `Exercise`)
-            //     .map(line => {
-            //         const match = line[2].match(re);
-            //         return new Date(match[3], match[2] - 1, match[1], match[4], match[5])
-            //     });
-            //
-            // const eventData = results.data.slice(2)
-            //     .filter(line => line[3] === 6 && line[13] !== null && line[13] !== `Exercise`)
-            //     .map(line => {
-            //         const match = line[2].match(re);
-            //         const date = new Date(match[3], match[2] - 1, match[1], match[4], match[5]);
-            //
-            //         if (mealTime.some(i => i.getTime() === date.getTime())) {
-            //             return {
-            //                 name: 'Breakfast',
-            //                 time: date,
-            //                 note: line[13],
-            //                 duration: 120
-            //             }
-            //         }
-            //         if (exerciseTime.some(i => i.getTime() === date.getTime())) {
-            //             return {
-            //                 name: 'Exercise',
-            //                 time: date,
-            //                 note: line[13],
-            //                 duration: 30
-            //             }
-            //         }
-            //         return undefined;
-            //     });
-            //
-            // const sortedEventData = eventData.sort((a, b) => {
-            //     return a[0] - b[0];
-            // });
-            //
-            // console.log(sortedEventData);
-            // setEvents(sortedEventData);
+function parseMysugr(filename, setLogEntries) {
+    Papa.parse(filename, {
+        header: false,
+        dynamicTyping: true,
+        complete: function (results) {
+            const bgmData = results.data.slice(1)
+                .map(line => {
+                    return {
+                        date: new Date(line[0] + ' ' + line[1] + ' ' + line[25]),
+                        bgm: line[3]
+                    }
+                });
+
+            setLogEntries(bgmData);
         }
     });
 }
@@ -143,33 +111,6 @@ function eventEntryFromLogEntry(logEntries: LogEntry[]): EventEntry[] {
                 timeDelta: (timeDelta !== undefined) ? timeDelta[0] : undefined,
             }
         });
-}
-
-function transformBgmData(data): LogEntry[] {
-    return data.map(d => ({
-        date: d[0],
-        bgm: d[1],
-        isFasting: d[2] || false,
-    }));
-}
-
-function transformEventData(data): LogEntry[] {
-    const nameToTypeMap: { [key: string]: LogEntryType } = {
-        'Breakfast': LogEntryType.Breakfast,
-        'Lunch': LogEntryType.Lunch,
-        'Dinner': LogEntryType.Dinner,
-        'Snack': LogEntryType.Snack,
-        'Sport': LogEntryType.Sport
-    };
-
-    return data.map(d => {
-        const type = nameToTypeMap[d[1]];
-        return {
-            date: d[0],
-            note: d[2],
-            ...(type ? {type} : {})
-        }
-    });
 }
 
 function sortAndRemoveDuplicates(logEntry: LogEntry[]): LogEntry[] {
@@ -212,17 +153,22 @@ function App() {
         localStorage.setItem('logEntries', JSON.stringify(logEntries));
     }, [logEntries]);
 
-    useEffect(() => {
-        appendLogEntries([...transformBgmData(bgmData), ...transformEventData(eventData)]);
-    }, []);
-
-    const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const handleLibreviewFileChange = (e: ChangeEvent<HTMLInputElement>) => {
         const filename = e.target.files[0];
         if (!filename) {
             return;
         }
 
         parseLibreView(filename, appendLogEntries);
+    };
+
+    const handleMysugrFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+        const filename = e.target.files[0];
+        if (!filename) {
+            return;
+        }
+
+        parseMysugr(filename, appendLogEntries);
     };
 
     const handleClearChange = (event) => {
@@ -261,12 +207,6 @@ function App() {
     }, [logEntries, dateRange]);
 
 
-    const [eventLog, setEventLog] = useState<LogEntry[]>([]);
-
-    useEffect(() => {
-        setEventLog(eventEntryFromLogEntry(filteredLogEntries));
-    }, [filteredLogEntries]);
-
     return (
         <div className="App">
             <link
@@ -289,7 +229,11 @@ function App() {
                                             <Paper>
                                                 <Button variant="contained" component="label">
                                                     Upload libreview file
-                                                    <input hidden type="file" onChange={handleFileChange}/>
+                                                    <input hidden type="file" onChange={handleLibreviewFileChange}/>
+                                                </Button>
+                                                <Button variant="contained" component="label">
+                                                    Upload mySugr file
+                                                    <input hidden type="file" onChange={handleMysugrFileChange}/>
                                                 </Button>
                                                 <Button variant="contained" component="label">
                                                     Clear
@@ -334,55 +278,30 @@ function App() {
                             {/* Space under header */}
                             <Grid item xs={12}/>
 
-                            <Grid item xs={2}>
-                                <Paper>
-                                    <EventSummaryTable eventLog={eventLog}></EventSummaryTable>
-                                </Paper>
-                            </Grid>
-                            <Grid item xs={5}>
-                                <Paper>
-                                    <BoxPlotChart logEntries={logEntries}></BoxPlotChart>
-                                </Paper>
-                            </Grid>
-                            <Grid item xs={5}>
+                            <Grid item xs={12}>
                                 <Paper>
                                     <BoxPlotChart logEntries={logEntries}></BoxPlotChart>
                                 </Paper>
                             </Grid>
 
                             {/* Left Section: Graphs */}
-                            <Grid container item xs={7} spacing={2}>
+                            <Grid container item xs={12} spacing={2}>
                                 <Grid item xs={12}>
                                     <Paper>
-                                        <TimelineChart logEntries={filteredLogEntries} eventLog={eventLog}></TimelineChart>
+                                        <TimelineChart logEntries={logEntries}></TimelineChart>
                                     </Paper>
                                 </Grid>
-                                {[
-                                    LogEntryType.Breakfast,
-                                    LogEntryType.Lunch,
-                                    LogEntryType.Dinner,
-                                    LogEntryType.Snack,
-                                    LogEntryType.Sport
-                                ].map((eventType, index) => (
-                                    <Grid item xs={6} key={index}>
-                                        <Paper>
-                                            <EventChart eventLog={eventLog} eventType={eventType}/>
-                                        </Paper>
-                                    </Grid>
-                                ))}
                             </Grid>
 
                             {/* Right Section: Event Table */}
+                            {/*}
                             <Grid item xs={5}>
                                 <Stack spacing={2}>
                                     <Paper>
                                         <EAG logEntries={filteredLogEntries}/>
                                     </Paper>
-                                    <Paper>
-                                        <EventTable eventLog={eventLog}></EventTable>
-                                    </Paper>
                                 </Stack>
-                            </Grid>
+                            </Grid>*/}
                         </Grid>
                     </Container>
                 </SettingsProvider>
