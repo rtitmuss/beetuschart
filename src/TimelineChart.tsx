@@ -22,6 +22,17 @@ function TimelineChart(props) {
     const logEntries = props.logEntries;
     const {settings, setSettings } = useSettings();
 
+    const { minDate, maxDate } = logEntries
+        .reduce((acc, data) => {
+            if (data.date < acc.minDate) {
+                acc.minDate = data.date;
+            }
+            if (data.date > acc.maxDate) {
+                acc.maxDate = data.date;
+            }
+            return acc;
+        }, { minDate: logEntries[0].date, maxDate: logEntries[0].date });
+
     const cgmData = logEntries
         .filter(data => data.cgm !== undefined)
         .map(data => ([
@@ -112,6 +123,8 @@ function TimelineChart(props) {
             },
             xaxis: {
                 type: 'datetime',
+                min: minDate.getTime(),
+                max: maxDate.getTime(),
                 labels: {
                     datetimeUTC: false
                 }
