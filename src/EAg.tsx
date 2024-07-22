@@ -10,7 +10,7 @@ interface eAGType {
     numberReadings: number,
 }
 
-function calculateEAG(logEntries): eAGType {
+export function calculateEAG(logEntries): eAGType {
     const cgmReadings = logEntries.filter(entry => entry.cgm);
     const averageMmolL = (cgmReadings.length > 0) ? cgmReadings.reduce((acc, entry) => acc + entry.cgm, 0) / cgmReadings.length : 0;
     const averageMgDl = averageMmolL * 18.0182
@@ -21,19 +21,4 @@ function calculateEAG(logEntries): eAGType {
         averageCgm: averageMmolL,
         numberReadings: cgmReadings.length,
     }
-}
-
-export function EAG({logEntries}) {
-    const {settings} = useSettings();
-
-    const eAG = calculateEAG(logEntries);
-
-    return (
-        <div>
-            <Typography>
-                eAG: {eAG.a1c.toFixed(1)}%
-                ({convertUnit(eAG.averageCgm, settings).toFixed(1)} {settings.unit} average {eAG.numberReadings} samples)
-            </Typography>
-        </div>
-    )
 }

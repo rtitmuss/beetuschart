@@ -2,6 +2,7 @@ import React from 'react';
 import Chart from 'react-apexcharts';
 import { LogEntry } from "./LogEntry.d.ts";
 import { convertUnit, useSettings } from './SettingsContext.tsx';
+import { calculateEAG } from "./EAg.tsx";
 
 // https://www.colorxs.com/palette/editor/e0f7b3-bef7b3-b3f7ca-b3f7ec-b3e0f7?scheme=analogous
 // E0F7B3 Tea Green
@@ -137,6 +138,21 @@ function TimelineChart(props) {
         ]
     }).flat();
 
+    const eagAnnotations = cgmDataSets
+        .map(cgmSet => {
+            return {
+                x: cgmSet[cgmSet.length - 1].date.getTime(),
+                borderColor: '#121914',
+                label: {
+                    borderWidth: 0,
+                    style: {
+                        color: '#121914',
+                    },
+                    text: 'eAG ' + calculateEAG(cgmSet).a1c.toFixed(1) + '%'
+                },
+            }
+        });
+
     const bgmAnnotations = logEntries
         .filter(data => data.bgm !== undefined)
         .map(data => {
@@ -175,7 +191,7 @@ function TimelineChart(props) {
       y: data.eswa
   }));
 
-  const yaxisAnnotations = [settings.rangeMin, settings.rangeMax].map(target => ({
+  const rangeAnnotations = [settings.rangeMin, settings.rangeMax].map(target => ({
       y: convertUnit(target, settings),
       borderColor: '#121914',
       label: {
@@ -221,10 +237,6 @@ function TimelineChart(props) {
         stroke: {
             width: [...Array(cgmSeries.length).fill(1), ...Array(cgmLines.length).fill(2), 2]
         },
-        title: {
-            text: 'Glucose Timeline',
-            align: 'left'
-        },
         yaxis: {
             min: convertUnit(2, settings),
             max: convertUnit(12, settings),
@@ -252,7 +264,8 @@ function TimelineChart(props) {
             show: false
         },
         annotations: {
-            yaxis: yaxisAnnotations,
+            xaxis: eagAnnotations,
+            yaxis: rangeAnnotations,
             points: bgmAnnotations,
         }
     };
