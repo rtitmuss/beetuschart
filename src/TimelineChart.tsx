@@ -59,6 +59,30 @@ const calculateESWA = (data: { date: Date; bgm: number }[], alpha: number) => {
     return eswaValues;
 };
 
+const calculateQuantile = (sortedCgm, q) => {
+    const pos = (sortedCgm.length - 1) * q;
+    const base = Math.floor(pos);
+    const rest = pos - base;
+    if (sortedCgm[base + 1] !== undefined) {
+        return sortedCgm[base] + rest * (sortedCgm[base + 1] - sortedCgm[base]);
+    } else {
+        return sortedCgm[base];
+    }
+};
+
+const calculateQuartilesAndExtrema = (cgm: number[]): number[] => {
+    const sortedCgm = cgm.sort((a, b) => a - b);
+    const sortedCgmLength = sortedCgm.length;
+
+    const min = sortedCgm[0];
+    const q1 = calculateQuantile(sortedCgm, 0.25)
+    const median = calculateQuantile(sortedCgm, 0.5)
+    const q3 = calculateQuantile(sortedCgm, 0.75)
+    const max = sortedCgm[sortedCgm.length - 1];
+
+    return {min: min, q1: q1, median: median, q3: q3, max: max};
+};
+
 function TimelineChart(props) {
     const { logEntries } = props;
     const { settings } = useSettings();
@@ -75,11 +99,43 @@ function TimelineChart(props) {
     const cgmDataSets = splitDataByTimeGap(cgmData, 2);
 
     const cgmSeries = cgmDataSets
-        .map(set => set
+        .map(cgmSet => cgmSet
             .map(data => ({
                 x: data.date,
                 y: convertUnit(data.cgm!, settings),
             })));
+
+    const cgmQuartiles = cgmDataSets
+        .map(cgmSet => {
+            const quartiles = calculateQuartilesAndExtrema(cgmSet.map(entry => entry.cgm));
+            return { minDate: cgmSet[0].date, maxDate: cgmSet[cgmSet.length - 1].date, quartiles: quartiles };
+        });
+
+    const cgmLines = cgmQuartiles.map((cgmSet, index) => {
+        return [
+            [{
+                y: convertUnit(cgmSet.quartiles.q1, settings),
+                x: cgmSet.minDate,
+            }, {
+                y: convertUnit(cgmSet.quartiles.q1, settings),
+                x: cgmSet.maxDate,
+            }],
+            [{
+                y: convertUnit(cgmSet.quartiles.median, settings),
+                x: cgmSet.minDate,
+            }, {
+                y: convertUnit(cgmSet.quartiles.median, settings),
+                x: cgmSet.maxDate,
+            }],
+            [{
+                y: convertUnit(cgmSet.quartiles.q3, settings),
+                x: cgmSet.minDate,
+            }, {
+                y: convertUnit(cgmSet.quartiles.q3, settings),
+                x: cgmSet.maxDate,
+            }]
+        ]
+    }).flat();
 
     const bgmAnnotations = logEntries
         .filter(data => data.bgm !== undefined)
@@ -100,7 +156,7 @@ function TimelineChart(props) {
             x: t0.getTime(),
             y: convertUnit(bgmReading, settings),
             marker: {
-                size: 2,
+                size: 1,
                 fillColor: data.isFasting ? '#121914' : '#B0B2B1',
                 strokeColor: data.isFasting ? '#121914' : '#B0B2B1',
             }
@@ -137,6 +193,10 @@ function TimelineChart(props) {
             name: cgmData[0].x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' (CGM)',
             data: cgmData
         })),
+        ...cgmLines.map(cgmLines => ({
+            name: '',
+            data: cgmLines
+        })),
         {
             name: 'Average fasting (BGM)',
             data: eswaData
@@ -157,9 +217,9 @@ function TimelineChart(props) {
                 autoSelected: 'zoom'
             }
         },
-        colors: [...Array(cgmSeries.length).fill('#B3E0F7'), '#121914'],
+        colors: [...Array(cgmSeries.length).fill('#B3E0F7'), ...Array(cgmLines.length).fill('#6A7F9E'), '#121914'],
         stroke: {
-            width: [...Array(cgmSeries.length).fill(1), 2]
+            width: [...Array(cgmSeries.length).fill(1), ...Array(cgmLines.length).fill(2), 2]
         },
         title: {
             text: 'Glucose Timeline',
@@ -178,13 +238,18 @@ function TimelineChart(props) {
             max: maxDate.getTime(),
             labels: {
                 datetimeUTC: false
+            },
+            tooltip: {
+                enabled: true
             }
         },
         tooltip: {
-            shared: true,
             x: {
                 format: 'dd MMM HH:mm'
             }
+        },
+        legend: {
+            show: false
         },
         annotations: {
             yaxis: yaxisAnnotations,
