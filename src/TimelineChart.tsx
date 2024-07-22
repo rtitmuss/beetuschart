@@ -20,20 +20,20 @@ const differenceInHours = (date1: Date, date2: Date): number => {
     return Math.ceil(diffTime / (1000 * 60 * 60)); // convert milliseconds to hours
 };
 
-const splitDataByTimeGap = (data: { x: Date, y: number }[], gapHours: number): { x: Date, y: number }[][] => {
-    const result: { x: Date, y: number }[][] = [];
-    let currentList: { x: Date, y: number }[] = [];
+const splitDataByTimeGap = (data: LogEntry[], gapHours: number): LogEntry[][] => {
+    const result: LogEntry[][] = [];
+    let currentList: LogEntry[] = [];
     let lastDate: Date | null = null;
 
     data.forEach(entry => {
-        if (lastDate === null || differenceInHours(entry.x, lastDate) <= gapHours) {
+        if (lastDate === null || differenceInHours(entry.date, lastDate) <= gapHours) {
             currentList.push(entry);
         } else {
             // Start a new list if the gap is greater than the specified gapHours
             result.push(currentList);
             currentList = [entry];
         }
-        lastDate = entry.x;
+        lastDate = entry.date;
     });
 
     // Push the last list if it has any data
@@ -70,13 +70,16 @@ function TimelineChart(props) {
     }, { minDate: logEntries[0].date, maxDate: logEntries[0].date });
 
     const cgmData = logEntries
-        .filter(data => data.cgm !== undefined)
-        .map(data => ({
-            x: data.date,
-            y: convertUnit(data.cgm!, settings),
-        }));
+        .filter(data => data.cgm !== undefined);
 
-    const cgmLists = splitDataByTimeGap(cgmData, 2);
+    const cgmDataSets = splitDataByTimeGap(cgmData, 2);
+
+    const cgmSeries = cgmDataSets
+        .map(set => set
+            .map(data => ({
+                x: data.date,
+                y: convertUnit(data.cgm!, settings),
+            })));
 
     const bgmAnnotations = logEntries
         .filter(data => data.bgm !== undefined)
@@ -108,7 +111,7 @@ function TimelineChart(props) {
       .filter(entry => entry.isFasting && entry.bgm !== undefined)
       .map(entry => ({ date: entry.date, bgm: entry.bgm! }));
 
-  const alpha = 0.1; // Smoothing factor for ESWA
+  const alpha = 0.05; // Smoothing factor for ESWA
   const eswaValues = calculateESWA(fastingBgmValues, alpha);
 
   const eswaData = eswaValues.map(data => ({
@@ -130,7 +133,7 @@ function TimelineChart(props) {
     }));
 
     const series = [
-        ...cgmLists.map(cgmData => ({
+        ...cgmSeries.map(cgmData => ({
             name: cgmData[0].x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' (CGM)',
             data: cgmData
         })),
@@ -154,9 +157,9 @@ function TimelineChart(props) {
                 autoSelected: 'zoom'
             }
         },
-        colors: [...Array(cgmLists.length).fill('#B3E0F7'), '#121914'],
+        colors: [...Array(cgmSeries.length).fill('#B3E0F7'), '#121914'],
         stroke: {
-            width: [...Array(cgmLists.length).fill(1), 2]
+            width: [...Array(cgmSeries.length).fill(1), 2]
         },
         title: {
             text: 'Glucose Timeline',
