@@ -28,10 +28,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import Papa from 'papaparse';
 
-import BoxPlotChart from "./BoxPlotChart.tsx";
-import {EAG} from "./EAg.tsx";
 import {LogEntry} from "./LogEntry.d.ts";
-import LogEntryTable from "./LogEntryTable.tsx";
 import {SettingsButton, SettingsProvider, useSettings} from "./SettingsContext.tsx";
 import TimelineChart from "./TimelineChart.tsx";
 
@@ -128,9 +125,14 @@ function sortAndRemoveDuplicates(entries: LogEntry[]): LogEntry[] {
             }
             return (a.note || '').localeCompare((b.note || ''));
         })
-        .filter((entry, index, self) =>
-            index === 0 || JSON.stringify(entry) !== JSON.stringify(self[index - 1])
-        );
+        .filter((entry, index, self) => {
+            if (index === 0) return true;
+            const prevEntry = self[index - 1];
+            return !(entry.date.getTime() === prevEntry.date.getTime() &&
+                     entry.cgm === prevEntry.cgm &&
+                     entry.bgm === prevEntry.bgm &&
+                     entry.note === prevEntry.note);
+        });
 }
 
 /* Assume the first bgm reading of the day is a fasting value */
@@ -264,33 +266,9 @@ function App() {
                                                     <input hidden onClick={handleClearChange}/>
                                                 </Button>
                                             </Paper>
-                                            <Paper>
-                                                <LogEntryTable logEntries={logEntries}></LogEntryTable>
-                                            </Paper>
                                         </Stack>
                                     </Container>
                                 </Drawer>
-
-                                <Button
-                                    color="inherit"
-                                    onClick={handleClick}
-                                >
-                                    {dateRange} days
-                                </Button>
-                                <Menu
-                                    id="long-menu"
-                                    anchorEl={anchorEl}
-                                    keepMounted
-                                    open={Boolean(anchorEl)}
-                                    onClose={() => handleClose(dateRange)}
-                                >
-                                    <MenuItem onClick={() => handleClose(2)}>2 days</MenuItem>
-                                    <MenuItem onClick={() => handleClose(3)}>3 days</MenuItem>
-                                    <MenuItem onClick={() => handleClose(7)}>7 days</MenuItem>
-                                    <MenuItem onClick={() => handleClose(14)}>14 days</MenuItem>
-                                    <MenuItem onClick={() => handleClose(28)}>28 days</MenuItem>
-                                    <MenuItem onClick={() => handleClose(90)}>90 days</MenuItem>
-                                </Menu>
 
                                 <Typography variant="h6" component="div" sx={{flexGrow: 1}}>Beetus Chart</Typography>
                                 <SettingsButton />
@@ -302,12 +280,6 @@ function App() {
                             {/* Space under header */}
                             <Grid item xs={12}/>
 
-                            <Grid item xs={12}>
-                                <Paper>
-                                    <BoxPlotChart logEntries={logEntries}></BoxPlotChart>
-                                </Paper>
-                            </Grid>
-
                             {/* Left Section: Graphs */}
                             <Grid container item xs={12} spacing={2}>
                                 <Grid item xs={12}>
@@ -316,16 +288,6 @@ function App() {
                                     </Paper>
                                 </Grid>
                             </Grid>
-
-                            {/* Right Section: Event Table */}
-                            {/*}
-                            <Grid item xs={5}>
-                                <Stack spacing={2}>
-                                    <Paper>
-                                        <EAG logEntries={filteredLogEntries}/>
-                                    </Paper>
-                                </Stack>
-                            </Grid>*/}
                         </Grid>
                     </Container>
                 </SettingsProvider>
