@@ -4,12 +4,19 @@ import { LogEntry } from "./LogEntry.d.ts";
 import { convertUnit, useSettings } from './SettingsContext.tsx';
 import { calculateEAG } from "./EAg.tsx";
 
-// https://www.colorxs.com/palette/editor/e0f7b3-bef7b3-b3f7ca-b3f7ec-b3e0f7?scheme=analogous
-// E0F7B3 Tea Green
-// BEF7B3 Very Light Green
-// B3F7CA Magic Mint
-// B3F7EC Celeste
-// B3E0F7 Uranian Blue
+/*
+For BGM (Blood Glucose Monitoring):
+    Primary Color: #9370DB (Medium Purple)
+    Light Tone: #BA55D3 (Medium Orchid)
+    Medium Tone: #8A2BE2 (Blue Violet)
+    Accent Color: #9400D3 (Dark Violet)
+
+For CGM (Continuous Glucose Monitoring):
+    Primary Color: #FFA07A (Light Salmon)
+    Light Tone: #FFB07A (Sandy Brown)
+    Medium Tone: #FF8C00 (Dark Orange)
+    Accent Color: #FF4500 (Orange Red)
+*/
 
 const addTime = (date: Date, value: number, unit: 'minutes' | 'hours'): Date => {
     const milliseconds = unit === 'minutes' ? value * 60 * 1000 : value * 60 * 60 * 1000;
@@ -165,43 +172,43 @@ function TimelineChart(props) {
                 .filter(data => t0 <= data.date && data.date <= t1)
                 .map(data => data.cgm!);
 
-        const averageGlucose = filteredGlucose.reduce((acc, value) => acc + value, 0) / filteredGlucose.length;
-        const deltaGlucose = (averageGlucose - bgmReading).toFixed(1);
+            const averageGlucose = filteredGlucose.reduce((acc, value) => acc + value, 0) / filteredGlucose.length;
+            const deltaGlucose = (averageGlucose - bgmReading).toFixed(1);
 
-        return {
-            x: t0.getTime(),
-            y: convertUnit(bgmReading, settings),
-            marker: {
-                size: 1,
-                fillColor: data.isFasting ? '#121914' : '#B0B2B1',
-                strokeColor: data.isFasting ? '#121914' : '#B0B2B1',
-            }
-        };
-    });
+            return {
+                x: t0.getTime(),
+                y: convertUnit(bgmReading, settings),
+                marker: {
+                    size: 1,
+                    fillColor: data.isFasting ? '#8A2BE2' : '#BA55D3',
+                    strokeColor: data.isFasting ? '#8A2BE2' : '#BA55D3',
+                }
+            };
+        });
 
-  const fastingBgmValues = logEntries
-      .filter(entry => entry.isFasting && entry.bgm !== undefined)
-      .map(entry => ({ date: entry.date, bgm: entry.bgm! }));
+    const fastingBgmValues = logEntries
+        .filter(entry => entry.isFasting && entry.bgm !== undefined)
+        .map(entry => ({ date: entry.date, bgm: entry.bgm! }));
 
-  const alpha = 0.05; // Smoothing factor for ESWA
-  const eswaValues = calculateESWA(fastingBgmValues, alpha);
+    const alpha = 0.05; // Smoothing factor for ESWA
+    const eswaValues = calculateESWA(fastingBgmValues, alpha);
 
-  const eswaData = eswaValues.map(data => ({
-      x: data.date.getTime(),
-      y: data.eswa
-  }));
+    const eswaData = eswaValues.map(data => ({
+        x: data.date.getTime(),
+        y: data.eswa
+    }));
 
-  const rangeAnnotations = [settings.rangeMin, settings.rangeMax].map(target => ({
-      y: convertUnit(target, settings),
-      borderColor: '#121914',
-      label: {
-        borderColor: '#121914',
-        style: {
-            color: '#fff',
-            background: '#121914'
-        },
-        text: convertUnit(target, settings) + ' ' + settings.unit,
-      }
+    const rangeAnnotations = [settings.rangeMin, settings.rangeMax].map(target => ({
+        y: convertUnit(target, settings),
+        borderColor: '#808080',
+        label: {
+            borderColor: '#808080',
+            style: {
+                color: '#fff',
+                background: '#808080'
+            },
+            text: convertUnit(target, settings) + ' ' + settings.unit,
+        }
     }));
 
     const series = [
@@ -233,7 +240,7 @@ function TimelineChart(props) {
                 autoSelected: 'zoom'
             }
         },
-        colors: [...Array(cgmSeries.length).fill('#B3E0F7'), ...Array(cgmLines.length).fill('#6A7F9E'), '#121914'],
+        colors: [...Array(cgmSeries.length).fill('#FFB07A'), ...Array(cgmLines.length).fill('#FF8C00'), '#9370DB'],
         stroke: {
             width: [...Array(cgmSeries.length).fill(1), ...Array(cgmLines.length).fill(2), 2]
         },
