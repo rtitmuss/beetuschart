@@ -10,28 +10,33 @@ import { convertUnit, useSettings } from './SettingsContext.tsx';
 // B3F7EC Celeste
 // B3E0F7 Uranian Blue
 
-function addMinutes(date, minutes) {
+function addMinutes(date: Date, minutes: number) {
     return new Date(date.getTime() + (minutes * 60 * 1000));
 }
 
-function addHours(date, hours) {
+function addHours(date: Date, hours: number) {
     return new Date(date.getTime() + (hours * 60 * 60 * 1000));
 }
 
-function splitDataByTimeGap(data: [Date, number], gapHours: number): [Date, number][][] {
-    const result: [Date, number][][] = [];
-    let currentList: [Date, number][] = [];
+function differenceInHours(date1: Date, date2: Date): number {
+    const diffTime = Math.abs(date1.getTime() - date2.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60)); // convert milliseconds to hours
+}
+
+function splitDataByTimeGap(data: {x: Date, y: number}, gapHours: number): [Date, number][][] {
+    const result: {x: Date, y: number}[][] = [];
+    let currentList: {x: Date, y: number}[] = [];
     let lastDate: Date | null = null;
 
     data.forEach(entry => {
-        if (lastDate === null || differenceInHours(entry[0], lastDate) <= gapHours) {
+        if (lastDate === null || differenceInHours(entry.x, lastDate) <= gapHours) {
             currentList.push(entry);
         } else {
             // Start a new list if the gap is greater than the specified gapHours
             result.push(currentList);
             currentList = [entry];
         }
-        lastDate = entry[0];
+        lastDate = entry.x;
     });
 
     // Push the last list if it has any data
@@ -42,9 +47,20 @@ function splitDataByTimeGap(data: [Date, number], gapHours: number): [Date, numb
     return result;
 }
 
-function differenceInHours(date1: Date, date2: Date): number {
-    const diffTime = Math.abs(date1.getTime() - date2.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60)); // convert milliseconds to hours
+function calculateESWA(data: { date: Date; bgm: number }[], alpha: number) {
+    const eswaValues: { date: Date; eswa: number }[] = [];
+    if (data.length === 0) return eswaValues;
+
+    let previousEswa = data[0].bgm;
+
+    for (let i = 0; i < data.length; i++) {
+        const { date, bgm } = data[i];
+        const currentEswa = alpha * bgm + (1 - alpha) * previousEswa;
+        eswaValues.push({ date, eswa: currentEswa.toFixed(1) });
+        previousEswa = currentEswa;
+    }
+
+    return eswaValues;
 }
 
 function TimelineChart(props) {
@@ -64,10 +80,10 @@ function TimelineChart(props) {
 
     const cgmData = logEntries
         .filter(data => data.cgm !== undefined)
-        .map(data => ([
-            data.date,
-            convertUnit(data.cgm, settings),
-        ]));
+        .map(data => ({
+            x: data.date,
+            y: convertUnit(data.cgm, settings),
+        }));
 
     const cgmLists = splitDataByTimeGap(cgmData, 2);
 
@@ -98,18 +114,21 @@ function TimelineChart(props) {
                     size: 2,
                     fillColor: data.isFasting ? '#121914': '#B0B2B1',
                     strokeColor: data.isFasting ? '#121914': '#B0B2B1',
-                },
-                /*
-                label: {
-                    text: convertedBgmReading + ' [' + convertUnit(deltaGloucose, settings) + ']',
-                    style: {
-                        background: '#121914',
-                        color: 'white',
-                    }
                 }
-                */
             };
         });
+
+    const fastingBgmValues = logEntries
+        .filter(entry => entry.isFasting && entry.bgm !== undefined)
+        .map(entry => ({ date: entry.date, bgm: entry.bgm! }));
+
+    const alpha = 0.1; // Smoothing factor for ESWA
+    const eswaValues = calculateESWA(fastingBgmValues, alpha);
+
+    const eswaData = eswaValues.map(data => ({
+        x: data.date.getTime(),
+        y: data.eswa
+    }));
 
     const yaxisAnnotations: ApexAnnotations = [settings.rangeMin, settings.rangeMax].map(target => {
         return {
@@ -126,6 +145,17 @@ function TimelineChart(props) {
         }
     });
 
+    const series = [
+        ...cgmLists.map(cgmData => ({
+            name: cgmData[0].x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' (CGM)',
+            data: cgmData
+        })),
+        {
+            name: 'Average fasting (BGM)',
+            data: eswaData
+        }
+    ];
+
     const state: ApexOptions = {
         options: {
             chart: {
@@ -141,7 +171,10 @@ function TimelineChart(props) {
                     autoSelected: 'zoom'
                 }
             },
-            colors: ['#B3E0F7'],
+            colors: [...Array(cgmLists.length).fill('#B3E0F7'), '#121914'],
+            stroke: {
+                width: [...Array(cgmLists.length).fill(1), 2]
+            },
             title: {
                 text: 'Glucose Timeline',
                 align: 'left'
@@ -172,10 +205,7 @@ function TimelineChart(props) {
                 points: bgmAnnotations,
             }
         },
-        series: cgmLists.map(cgmData => ({
-            name: 'CGM',
-            data: cgmData
-        }))
+        series: series
     };
 
     return <Chart options={state.options} series={state.series} type="line"/>;
